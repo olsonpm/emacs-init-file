@@ -1,3 +1,7 @@
+;file imports
+(load "~/emacs.d/init.d/word-navigation.el" nil t)
+
+;custom control sequences that the ubuntu apparently isn't passing through
 (unless (display-graphic-p)
   (progn
     (define-key input-decode-map "\033[5D" [(control left)])
@@ -42,16 +46,19 @@
   )
 
 (defun beginning-of-file()
+  "Move the cursor to the beginning of the file"
   (interactive)
   (goto-char (point-min))
   )
 
 (defun end-of-file()
+  "Move the cursor to the end of the file"
   (interactive)
   (goto-char (point-max))
   )
 
 (defun kill-whole-line2()
+  "If on the last line of the file, then backspace instead"
   (interactive)
   (if
       (eq (+ 1 (count-lines (point-min) (point-max))) (line-number-at-pos))
@@ -59,183 +66,11 @@
     (kill-whole-line))
   )
 
-(defconst whitespace-chars (list ?\t ?\s ?\n)  
-  "List of whitespace characters"
-  )
-
-(defconst symbol-chars (list ?) ?( ?\[ ?\] ?\{ ?\} ?\. ?\, ?\/ ?\\ ?\; ?\' ?\" ?\: ?\! ?\~ ?\` ?\@ ?\# ?\$ ?\% ?\^ ?\& ?\* ?\- ?\_ ?\+ ?\= ?\< ?\>)
-  "List of symbol characters"
-  )
-
-(defconst alphanumeric-chars (list ?a ?b ?c ?d ?e ?f ?g ?h ?i ?j ?k ?l ?m ?n ?o ?p ?q ?r ?s ?t ?u ?v ?w ?x ?y ?z
-				   ?A ?B ?C ?D ?E ?F ?G ?H ?I ?J ?K ?L ?M ?N ?O ?P ?Q ?R ?S ?T ?U ?V ?W ?X ?Y ?Z
-				   ?0 ?1 ?2 ?3 ?4 ?5 ?6 ?7 ?8 ?9)
-  "List of alpha-numeric characters"
-  )
-
-(defun recursively-compare-char-white (inc-dec
-				       char-after-or-before
-				       cur-point
-				       result-fn)
-  (if
-      (memq (funcall
-	     char-after-or-before
-	     cur-point)
-	    whitespace-chars)  
-      (recursively-compare-char-white
-       inc-dec
-       char-after-or-before
-       (+ inc-dec cur-point)
-       result-fn)  
-    (funcall result-fn cur-point))
-  ) 
-
-(defun recursively-compare-char (inc-dec
-				 char-after-or-before
-				 char-set
-				 cur-point
-				 result-fn)
-  (cond
-   ((memq (funcall
-	   char-after-or-before
-	   cur-point)
-	  whitespace-chars)
-    (recursively-compare-char-white
-     inc-dec
-     char-after-or-before
-     (+ inc-dec cur-point)
-     result-fn))
-   
-   ((memq (funcall
-	   char-after-or-before
-	   cur-point)
-	  char-set)
-    (recursively-compare-char
-     inc-dec
-     char-after-or-before
-     char-set
-     (+ inc-dec cur-point)  
-     result-fn))
-   
-   (t (funcall result-fn cur-point)))
-  )
-
-(defun simple-recur-compare-char (inc-dec
-				  char-after-or-before
-				  stop-char-set
-				  cur-point
-				  result-fn)
-  (if
-      (memq
-	    (funcall char-after-or-before cur-point)
-	    stop-char-set)
-      (simple-recur-compare-char
-       inc-dec
-       char-after-or-before
-       stop-char-set
-       (+ inc-dec cur-point)
-       result-fn)
-    (funcall result-fn cur-point))
-  )
-
-(defun backward-kill-word2()
-  (interactive)
-  (setq all-chars (append whitespace-chars symbol-chars))
-  (if  
-      (memq (char-before) all-chars)  
-      (progn
-	(push-mark (point) nil t)
-	(recursively-compare-char
-	 -1
-	 'char-before
-	 all-chars
-	 (1- (point))
-	 (lambda (cur-point)
-	   (kill-region cur-point (mark)))))
-    (simple-recur-compare-char
-     -1
-     'char-before
-     alphanumeric-chars
-     (1- (point))
-     (lambda (cur-point)
-       (kill-region cur-point (mark)))))
-  )
- 
-(defun kill-word2()
-  (interactive)
-  (setq all-chars (append whitespace-chars symbol-chars))
-  (if
-      (memq (char-after) all-chars)
-      (progn  
-	(push-mark (point) nil t)
-	(recursively-compare-char
-	 1
-	 'char-after
-	 all-chars
-	 (1+ (point))
-	 (lambda (cur-point)
-	   (kill-region cur-point (mark)))))
-    (simple-recur-compare-char
-     1
-     'char-after
-     alphanumeric-chars
-     (1+ (point))
-     (lambda (cur-point)
-       (kill-region cur-point (mark)))))
-  )
-
-(defun forward-word2()
-  (interactive)
-  (setq all-chars (append whitespace-chars symbol-chars))
-  (if
-      (memq (char-after) all-chars)
-      (progn
-	(recursively-compare-char
-	 1  
-	 'char-after
-	 all-chars
-	 (1+ (point))
-	 (lambda (cur-point)
-	   (goto-char cur-point))))
-    (simple-recur-compare-char
-     1
-     'char-after
-     alphanumeric-chars
-     (1+ (point))
-     (lambda (cur-point)
-       (goto-char cur-point))))
-  )
-
-(defun backward-word2()
-  (interactive)
-  (setq all-chars (append whitespace-chars symbol-chars))
-  (if
-      (memq (char-before) all-chars)
-      (progn
-	(recursively-compare-char
-	 -1
-	 'char-before
-	 all-chars
-	 (1- (point))
-	 (lambda (cur-point)
-	   (goto-char cur-point))))
-    (simple-recur-compare-char
-     -1
-     'char-before
-     alphanumeric-chars
-     (1- (point))
-     (lambda (cur-point)
-       (goto-char cur-point))))
-  )
-  
-(global-set-key (kbd "C-<right>") 'forward-word2)
-(global-set-key (kbd "C-<left>") 'backward-word2)
+;Custom key definitions
 (global-set-key (kbd "C-<up>") 'up-5-lines)
 (global-set-key (kbd "C-<down>") 'down-5-lines)
 (global-set-key (kbd "C-<home>") 'beginning-of-file)
 (global-set-key (kbd "C-<end>") 'end-of-file)
-(global-set-key (kbd "C-<delete>") 'kill-word2)
-(global-set-key (kbd "C-<backspace>") 'backward-kill-word2)
 (global-set-key (kbd "RET") (kbd "M-j"))
 
 (global-unset-key (kbd "C-<prior>"))
@@ -244,12 +79,21 @@
 (global-set-key (kbd "C-<prior>") 'scroll-down-5-lines)
 (global-set-key (kbd "C-k") 'kill-whole-line2)
 
+;Functions found in /emacs.d/init.d/word-navigation
+(global-set-key (kbd "C-<right>") 'forward-word2)
+(global-set-key (kbd "C-<left>") 'backward-word2)
+(global-set-key (kbd "C-<delete>") 'kill-word2)
+(global-set-key (kbd "C-<backspace>") 'backward-kill-word2)
+
+;sets line number formatting
 (global-linum-mode)
 (setq linum-format "%4d \u2502 ")
 
+;sets file mode per "extension"
 (add-to-list 'auto-mode-alist
 	     '("\\.psql$" . (lambda ()
 			      (sql-mode)
 			      (sql-highlight-postgres-keywords))))
 
+;Sets default file mode.
 (setq-default major-mode 'shell-script-mode)
